@@ -1,0 +1,9 @@
+Flask
+Flask-Cors
+opencv-python
+mediapipe
+numpy
+requests
+beautifulsoup4
+rembg
+onnxruntime
