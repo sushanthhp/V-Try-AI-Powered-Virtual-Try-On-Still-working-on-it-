@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>V-Try Studio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #0f172a; 
+            color: #e2e8f0;
+            font-size: 14px;
+            overflow: hidden; /* keep everything on one screen */
+            height: 100vh;
+        }
+        .card { 
+            background-color: rgba(30, 41, 59, 0.8);
+            border: 1px solid #334155;
+            backdrop-filter: blur(10px);
+        }
+        .btn-primary { 
+            background-color: #4f46e5; 
+            transition: all 0.2s ease; 
+        }
+        .btn-primary:hover:not(:disabled) { 
+            background-color: #6366f1;
+            transform: translateY(-1px);
+        }
+        .btn-primary:disabled {
+            background-color: #374151;
+            cursor: not-allowed;
+        }
+        .loader { border-top-color: #6366f1; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .input-field { background-color: #1e293b; border: 1px solid #475569; color: #cbd5e1; }
+        .radio-label { 
+            border: 2px solid #475569;
+            transition: all 0.2s ease; 
+        }
+        input[type="radio"]:checked + .radio-label { 
+            background-color: #4f46e5; 
+            border-color: #4338ca; 
+            color: #ffffff;
+        }
+        .file-input-label { background-color: #1e293b; border: 2px dashed #475569; transition: all 0.2s ease; }
+        .file-input-label:hover { border-color: #4f46e5; background-color: #334155; }
+        .fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        const UploadIcon = () => (
+            <svg className="w-8 h-8 mx-auto mb-2 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+            </svg>
+        );
+        
+        const OutputPlaceholder = () => (
+            <div className="flex flex-col items-center justify-center h-full w-full bg-slate-900/50 rounded-lg p-4 text-center">
+                <svg className="w-12 h-12 text-slate-600 mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.898 20.572L16.5 21.75l-.398-1.178a3.375 3.375 0 00-2.456-2.456L12.75 18l1.178-.398a3.375 3.375 0 002.456-2.456L16.5 14.25l.398 1.178a3.375 3.375 0 002.456 2.456L20.25 18l-1.178.398a3.375 3.375 0 00-2.456 2.456z" />
+                </svg>
+                <h3 className="text-base font-semibold text-slate-300">Your Result Will Appear Here</h3>
+                <p className="text-slate-500 mt-1 text-xs">Complete the steps on the left and click "Generate".</p>
+            </div>
+        );
+
+        const LoadingState = () => (
+             <div className="absolute inset-0 bg-slate-900/80 flex flex-col items-center justify-center z-20 rounded-lg">
+                <div className="loader ease-linear rounded-full border-8 border-t-8 border-gray-600 h-16 w-16"></div>
+                <p className="text-white text-base mt-4">AI is generating your image...</p>
+            </div>
+        );
+
+        const App = () => {
+            const [userImage, setUserImage] = useState(null);
+            const [userImagePreview, setUserImagePreview] = useState('');
+            const [sourceType, setSourceType] = useState('default');
+            const [gender, setGender] = useState('female');
+
+            const [clothingImageUpload, setClothingImageUpload] = useState(null);
+            const [clothingImagePreview, setClothingImagePreview] = useState('');
+            const [clothingImageUrl, setClothingImageUrl] = useState('');
+            const [productPageUrl, setProductPageUrl] = useState('');
+
+            const [resultImage, setResultImage] = useState(null);
+            const [isLoading, setIsLoading] = useState(false);
+            const [errorMessage, setErrorMessage] = useState('');
+            const [isErrorVisible, setIsErrorVisible] = useState(false);
+
+            const handleUserImageChange = (e) => {
+                const file = e.target.files[0];
+                if (file) { setUserImage(file); setUserImagePreview(URL.createObjectURL(file)); }
+            };
+            
+            const handleClothingImageChange = (e) => {
+                const file = e.target.files[0];
+                if (file) { setClothingImageUpload(file); setClothingImagePreview(URL.createObjectURL(file)); }
+            };
+
+            const handleSubmit = async (e) => {
+                if (e && e.preventDefault) e.preventDefault();
+                if (!userImage) { setErrorMessage("Please upload your photo first."); return; }
+
+                const formData = new FormData();
+                formData.append('user_image', userImage);
+                formData.append('source_type', sourceType);
+
+                if (sourceType === 'default') {
+                    formData.append('gender', gender);
+                } else if (sourceType === 'upload') {
+                    if (!clothingImageUpload) { setErrorMessage("Please upload a clothing photo."); return; }
+                    formData.append('model_image_upload', clothingImageUpload);
+                } else if (sourceType === 'imageUrl') {
+                    if (!clothingImageUrl.trim()) { setErrorMessage("Please enter a direct image URL."); return; }
+                    formData.append('model_image_url', clothingImageUrl);
+                } else if (sourceType === 'pageUrl') {
+                    if (!productPageUrl.trim()) { setErrorMessage("Please enter the shopping website URL."); return; }
+                    formData.append('product_page_url', productPageUrl);
+                }
+
+                setIsLoading(true);
+                setErrorMessage('');
+                setResultImage(null);
+
+                try {
+                    const response = await fetch('http://127.0.0.1:5000/process-image', { method: 'POST', body: formData });
+                    if (!response.ok) {
+                        let msg = '';
+                        try { msg = (await response.json()).error; } catch { msg = await response.text(); }
+                        throw new Error(msg || `Server error: ${response.status}`);
+                    }
+                    const data = await response.json();
+                    setResultImage(`data:image/png;base64,${data.image}`);
+                } catch (error) {
+                    console.error('Fetch error:', error);
+                    setErrorMessage(error.message || 'Failed to fetch. Is the Python server running?');
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+            
+            const handleReset = () => {
+                setResultImage(null);
+                setUserImage(null);
+                setUserImagePreview('');
+                setClothingImageUpload(null);
+                setClothingImagePreview('');
+                setClothingImageUrl('');
+                setProductPageUrl('');
+                setErrorMessage('');
+            }
+
+            useEffect(() => {
+                if (errorMessage) {
+                    setIsErrorVisible(true);
+                    const timer = setTimeout(() => setIsErrorVisible(false), 3500);
+                    const clearTimer = setTimeout(() => setErrorMessage(''), 4000);
+                    return () => { clearTimeout(timer); clearTimeout(clearTimer); }
+                }
+            }, [errorMessage]);
+
+            return (
+                <div className="h-screen w-full flex flex-col p-3">
+                    {errorMessage && (
+                        <div className={`fixed top-3 right-3 bg-red-600 text-white py-2 px-3 rounded-md shadow-lg z-50 text-sm transition-all duration-300 ${isErrorVisible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-6'}`}>
+                            {errorMessage}
+                        </div>
+                    )}
+                    <div className="text-center mb-2">
+                        <h1 className="text-2xl font-bold text-white leading-tight">V-Try Studio</h1>
+                        <p className="text-sm text-slate-400 mt-0.5">Realistic virtual try-on in seconds</p>
+                    </div>
+                    <div className="card rounded-xl p-5 flex-1 min-h-0">
+                        <div className="grid grid-cols-2 gap-4 h-full">
+                            {/* --- Input Column --- */}
+                            <div className="fade-in min-w-0 flex flex-col min-h-0">
+                                <form onSubmit={handleSubmit} className="flex flex-col gap-3 h-full">
+                                    {/* Step 1 (upload area slightly increased) */}
+                                    <div className="shrink-0">
+                                        <h3 className="text-lg font-semibold text-white mb-2 flex items-center">
+                                            <span className="bg-indigo-500 text-white rounded-full h-6 w-6 text-xs font-bold flex items-center justify-center mr-2">1</span>
+                                            Upload Your Photo
+                                        </h3>
+                                        <label htmlFor="user-image-upload" className="file-input-label flex flex-col items-center justify-center w-full h-56 rounded-lg cursor-pointer">
+                                            {userImagePreview ? (
+                                                <img src={userImagePreview} alt="Your Preview" className="h-full w-full object-cover rounded-lg"/>
+                                            ) : (
+                                                <div className="text-center text-slate-400">
+                                                    <UploadIcon />
+                                                    <p className="font-semibold text-sm">Click to upload</p>
+                                                    <p className="text-xs mt-0.5">Face should be clear</p>
+                                                </div>
+                                            )}
+                                            <input id="user-image-upload" type="file" className="hidden" accept="image/png, image/jpeg" onChange={handleUserImageChange} />
+                                        </label>
+                                    </div>
+
+                                    {/* Step 2 */}
+                                    <div className="shrink-0">
+                                        <h3 className="text-lg font-semibold text-white mb-2 flex items-center">
+                                            <span className="bg-indigo-500 text-white rounded-full h-6 w-6 text-xs font-bold flex items-center justify-center mr-2">2</span>
+                                            Provide Clothing
+                                        </h3>
+                                        <div className="flex flex-col gap-3">
+                                            <div className="grid grid-cols-4 gap-2">
+                                                {[{id: 'default', label: 'Default'}, {id: 'upload', label: 'Upload'}, {id: 'imageUrl', label: 'Image URL'}, {id: 'pageUrl', label: 'Website'}].map(source => (
+                                                    <div key={source.id}>
+                                                        <input type="radio" id={source.id} name="sourceType" value={source.id} className="hidden" checked={sourceType === source.id} onChange={(e) => setSourceType(e.target.value)} />
+                                                        <label htmlFor={source.id} className="radio-label block text-center p-3 rounded-lg cursor-pointer text-xs font-medium">{source.label}</label>
+                                                    </div>
+                                                ))}
+                                            </div>
+
+                                            <div className="px-5 py-5 bg-slate-900/50 rounded-lg h-20 flex items-center justify-center">
+                                                {sourceType === 'default' && (
+                                                    <div className="text-slate-400 text-xs text-center">
+                                                        Using default garments. Choose your model below.
+                                                    </div>
+                                                )}
+
+                                                {sourceType === 'upload' && (
+                                                    <label htmlFor="clothing-image-upload" className="file-input-label flex flex-col items-center justify-center w-full h-20 rounded-lg cursor-pointer text-xs">
+                                                        {clothingImagePreview ? (
+                                                            <img src={clothingImagePreview} alt="Clothing Preview" className="h-full w-full object-cover rounded-lg"/>
+                                                        ) : (
+                                                            <span className="text-slate-400">Upload Clothing Photo</span>
+                                                        )}
+                                                        <input id="clothing-image-upload" type="file" className="hidden" accept="image/png, image/jpeg" onChange={handleClothingImageChange} />
+                                                    </label>
+                                                )}
+
+                                                {sourceType === 'imageUrl' && (
+                                                    <input type="text" value={clothingImageUrl} onChange={e => setClothingImageUrl(e.target.value)} className="input-field w-full p-3 rounded-lg text-sm" placeholder="https://.../shirt.jpg" />
+                                                )}
+
+                                                {sourceType === 'pageUrl' && (
+                                                    <input type="text" value={productPageUrl} onChange={e => setProductPageUrl(e.target.value)} className="input-field w-full p-3 rounded-lg text-sm" placeholder="https://myntra.com/product/..." />
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Step 3 - Model */}
+                                    <div className="shrink-0">
+                                        <h3 className="text-lg font-semibold text-white mb-2 flex items-center">
+                                            <span className="bg-indigo-500 text-white rounded-full h-6 w-6 text-xs font-bold flex items-center justify-center mr-2">3</span>
+                                            Model
+                                        </h3>
+                                        <div className="px-5 py-5 bg-slate-900/50 rounded-lg h-20 flex items-center">
+                                            <div className="w-full flex gap-3">
+                                                {['female', 'male'].map(g => (
+                                                    <div className="flex-1" key={g}>
+                                                        <input type="radio" id={g} name="gender" value={g} className="hidden" checked={gender === g} onChange={() => setGender(g)} />
+                                                        <label htmlFor={g} className="radio-label block text-center px-4 py-3 rounded-lg cursor-pointer capitalize text-sm font-medium">
+                                                            {g}
+                                                        </label>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* No button here */}
+                                </form>
+                            </div>
+
+                            {/* --- Output Column --- */}
+                            <div className="relative fade-in min-w-0 flex flex-col min-h-0" style={{animationDelay: '0.15s'}}>
+                                <h3 className="text-lg font-semibold text-white mb-2 text-left">Result</h3>
+                                <div className="relative flex-1 min-h-0 rounded-lg">
+                                    {isLoading && <LoadingState />}
+                                    {resultImage && !isLoading && (
+                                        <div className="w-full h-full">
+                                            <img src={resultImage} alt="Virtual Try-On Result" className="w-full h-full object-cover rounded-lg" />
+                                            <button onClick={handleReset} className="absolute top-2 right-2 bg-slate-700/60 hover:bg-slate-600 text-white font-semibold py-1.5 px-3 rounded-full text-xs backdrop-blur-sm transition-colors">
+                                                Start Over
+                                            </button>
+                                        </div>
+                                    )}
+                                    {!resultImage && !isLoading && <OutputPlaceholder />}
+                                </div>
+
+                                {/* Generate button on the Result side */}
+                                <div className="mt-3 shrink-0">
+                                    <button
+                                        type="button"
+                                        onClick={() => handleSubmit()}
+                                        disabled={isLoading}
+                                        className="btn-primary w-full text-white font-bold py-3 rounded-lg text-base"
+                                    >
+                                        {isLoading ? 'Generating…' : 'Generate My Try-On'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
